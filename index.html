@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Queena 智慧批次剪裁 v3</title>
+<title>Queena 智慧批次剪裁 v4</title>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC",sans-serif;--bg:#0e1117;--card:#171b24;--line:#2c3340;--accent:#8b6cff;--txt:#fff;--sub:#b9c1ce}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt)}.wrap{max-width:900px;margin:auto;padding:18px}
@@ -15,26 +15,31 @@ h1{font-size:27px;margin:4px 0 8px}p{color:var(--sub);line-height:1.55}.card{bac
 .tip{background:#10151d;border:1px solid #303848;border-radius:12px;padding:12px;color:#d7dce5;line-height:1.5;font-size:14px}.status{min-height:22px;margin-top:10px;color:#b9ffc8}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}.item{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#10141b}.item img{width:100%;display:block;background:#000;aspect-ratio:1/1;object-fit:contain}.meta{padding:10px;font-size:13px;color:#ccd3de;line-height:1.45}
 .badge{display:inline-block;background:#252c38;border-radius:999px;padding:3px 8px;margin-right:5px}.small{font-size:12px;color:#8e98a7;margin-top:8px}
+.range{margin-top:12px}.range label{display:flex;justify-content:space-between;color:#d9deea;font-size:14px}.range input{width:100%}
 @media(max-width:700px){.ratios{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body><div class="wrap">
-<h1>📸 Queena 智慧批次剪裁 v3</h1>
-<p>這版不是只判斷「最上面/最下面是不是黑色」，而是會找出手機截圖裡<strong>最大的一整塊中間圖片</strong>，把瀏覽器列、狀態列和大片黑底一起排除。</p>
+<h1>📸 Queena 智慧批次剪裁 v4</h1>
+<p>這版改成「<strong>辨識黑底本身的顏色</strong>」再找內容，不會把 JPEG 壓縮後的深灰黑底誤認成圖片。</p>
 
 <div class="card">
 <label class="pick" for="files">＋ 選擇多張截圖</label>
 <input id="files" type="file" accept="image/*" multiple>
 
 <div class="tip" style="margin-top:12px">
-<strong>你這種截圖請選「智慧抓中間圖片」</strong><br>
-它會先找出截圖裡最大的內容區，直接保留完整內容，不硬裁成 16:9。<br>
-如果之後真的需要固定比例，再選「完整放入指定比例」；它會補黑邊而不是把內容切掉。
+<strong>你的這種截圖：</strong>選「智慧去黑邊」就好。<br>
+它會把中間圖片上下的黑色空白裁掉，<strong>不會硬裁內容</strong>。如果某些圖黑邊還剩一點，可把「去黑邊強度」往右拉。
 </div>
 
 <div class="modes">
-  <div class="opt active" data-mode="smart">✨ 智慧抓中間圖片</div>
+  <div class="opt active" data-mode="smart">✨ 智慧去黑邊</div>
   <div class="opt" data-mode="fit">完整放入指定比例</div>
+</div>
+
+<div class="range">
+  <label><span>去黑邊強度</span><strong id="strengthLabel">標準</strong></label>
+  <input id="strength" type="range" min="1" max="3" step="1" value="2">
 </div>
 
 <div class="ratios">
@@ -51,7 +56,7 @@ h1{font-size:27px;margin:4px 0 8px}p{color:var(--sub);line-height:1.55}.card{bac
 <button id="clear" class="alt">清空</button>
 </div>
 <div id="status" class="status"></div>
-<div class="small">原圖完全不會覆蓋。新檔會另外下載。</div>
+<div class="small">原圖不會覆蓋。新圖會另外輸出。</div>
 </div>
 
 <div class="card"><strong>處理結果</strong><div id="grid" class="grid" style="margin-top:12px"></div></div>
@@ -59,130 +64,135 @@ h1{font-size:27px;margin:4px 0 8px}p{color:var(--sub);line-height:1.55}.card{bac
 
 <script>
 const $=s=>document.querySelector(s);
-const filesEl=$('#files'), processBtn=$('#process'), downloadBtn=$('#download'), clearBtn=$('#clear'), grid=$('#grid'), statusEl=$('#status');
-let files=[], outputs=[], mode='smart', ratio='16:9';
+const filesEl=$('#files'),processBtn=$('#process'),downloadBtn=$('#download'),clearBtn=$('#clear'),grid=$('#grid'),statusEl=$('#status');
+let files=[],outputs=[],mode='smart',ratio='16:9';
 
 document.querySelectorAll('[data-mode]').forEach(el=>el.onclick=()=>{
-  document.querySelectorAll('[data-mode]').forEach(x=>x.classList.remove('active'));
-  el.classList.add('active'); mode=el.dataset.mode;
+ document.querySelectorAll('[data-mode]').forEach(x=>x.classList.remove('active')); el.classList.add('active'); mode=el.dataset.mode;
 });
 document.querySelectorAll('[data-ratio]').forEach(el=>el.onclick=()=>{
-  document.querySelectorAll('[data-ratio]').forEach(x=>x.classList.remove('active'));
-  el.classList.add('active'); ratio=el.dataset.ratio;
+ document.querySelectorAll('[data-ratio]').forEach(x=>x.classList.remove('active')); el.classList.add('active'); ratio=el.dataset.ratio;
 });
+
+const strength=$('#strength'), strengthLabel=$('#strengthLabel');
+const labels={1:'寬鬆',2:'標準',3:'較強'};
+strength.oninput=()=>strengthLabel.textContent=labels[strength.value];
+
 filesEl.onchange=()=>{files=[...filesEl.files];outputs=[];grid.innerHTML='';processBtn.disabled=!files.length;downloadBtn.disabled=true;statusEl.textContent=`已選 ${files.length} 張`;};
 clearBtn.onclick=()=>{files=[];outputs=[];filesEl.value='';grid.innerHTML='';statusEl.textContent='已清空';processBtn.disabled=true;downloadBtn.disabled=true;};
 
 function loadImage(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file),img=new Image();img.onload=()=>res({img,url});img.onerror=rej;img.src=url;});}
+function parseRatio(s){const [w,h]=s.split(':').map(Number);return{w,h,val:w/h};}
 
-// 找「最大的一整塊內容區」，不是只從第一個非黑列開始。
-// 這能忽略上方時間、網址列、按鈕等零碎 UI。
-function detectMainBand(src){
-  const W=Math.min(360,src.width), H=Math.min(900,src.height);
-  const c=document.createElement('canvas');c.width=W;c.height=H;
-  const x=c.getContext('2d',{willReadFrequently:true});
-  x.drawImage(src,0,0,src.width,src.height,0,0,W,H);
-  const d=x.getImageData(0,0,W,H).data;
+function median(a){const b=[...a].sort((x,y)=>x-y);return b[Math.floor(b.length/2)]||0;}
+function colorDist(r,g,b,br,bg,bb){return Math.sqrt((r-br)**2+(g-bg)**2+(b-bb)**2);}
 
-  const left=Math.floor(W*.04), right=Math.floor(W*.96);
-  const densities=new Array(H).fill(0);
+/* 核心：先估算截圖周圍黑底的實際顏色，再找「與背景顏色明顯不同」的最大連續區 */
+function detectContentBand(src){
+ const W=Math.min(420,src.width),H=Math.min(1000,src.height);
+ const c=document.createElement('canvas');c.width=W;c.height=H;
+ const x=c.getContext('2d',{willReadFrequently:true});
+ x.drawImage(src,0,0,src.width,src.height,0,0,W,H);
+ const d=x.getImageData(0,0,W,H).data;
 
-  for(let y=0;y<H;y++){
-    let n=0,total=0;
-    for(let xx=left;xx<right;xx+=2){
-      const i=(y*W+xx)*4;
-      const r=d[i],g=d[i+1],b=d[i+2];
-      // 深藍/深灰內容也算，不只亮色；真正黑底通常非常接近 0。
-      const max=Math.max(r,g,b), min=Math.min(r,g,b);
-      if(max>14 || (max-min)>7) n++;
-      total++;
-    }
-    densities[y]=n/total;
-  }
+ // 用左右邊緣 + 上下中段多點估算黑底，不假設一定是純 #000
+ const samples=[];
+ const ys=[.08,.18,.30,.50,.70,.82,.92].map(v=>Math.floor(H*v));
+ const xs=[.02,.04,.96,.98].map(v=>Math.floor(W*v));
+ for(const yy of ys) for(const xx of xs){
+   const i=(yy*W+xx)*4; samples.push([d[i],d[i+1],d[i+2]]);
+ }
+ const br=median(samples.map(v=>v[0])), bg=median(samples.map(v=>v[1])), bb=median(samples.map(v=>v[2]));
 
-  // 平滑，降低文字/小圖示造成的誤判
-  const sm=densities.map((_,y)=>{
-    let s=0,n=0;
-    for(let k=Math.max(0,y-3);k<=Math.min(H-1,y+3);k++){s+=densities[k];n++;}
-    return s/n;
-  });
+ const s=Number(strength.value);
+ const distTh={1:24,2:34,3:44}[s];
+ const rowNeed={1:.12,2:.20,3:.28}[s];
 
-  let active=sm.map(v=>v>.18);
+ const rowScore=new Array(H).fill(0);
+ const left=Math.floor(W*.03),right=Math.floor(W*.97);
+ for(let y=0;y<H;y++){
+   let diff=0,total=0;
+   for(let xx=left;xx<right;xx+=2){
+     const i=(y*W+xx)*4;
+     if(colorDist(d[i],d[i+1],d[i+2],br,bg,bb)>distTh) diff++;
+     total++;
+   }
+   rowScore[y]=diff/total;
+ }
 
-  // 補掉內容內部的小黑縫，最多約 2.5% 高度
-  const maxGap=Math.max(5,Math.round(H*.025));
-  let i=0;
-  while(i<H){
-    if(active[i]){i++;continue;}
-    let s=i; while(i<H&&!active[i])i++; let e=i-1;
-    if(s>0 && i<H && e-s+1<=maxGap) for(let k=s;k<=e;k++) active[k]=true;
-  }
+ // 平滑，避免文字/細線造成斷裂
+ const sm=rowScore.map((_,y)=>{
+   let sum=0,n=0;
+   for(let k=Math.max(0,y-4);k<=Math.min(H-1,y+4);k++){sum+=rowScore[k];n++;}
+   return sum/n;
+ });
 
-  const segs=[];
-  i=0;
-  while(i<H){
-    if(!active[i]){i++;continue;}
-    let s=i; while(i<H&&active[i])i++; let e=i-1;
-    const len=e-s+1;
-    const avg=sm.slice(s,e+1).reduce((a,b)=>a+b,0)/len;
-    const center=(s+e)/2/H;
-    // 長度最重要；略偏好畫面中間，避免頂部瀏覽器 UI。
-    const centerWeight=1-0.25*Math.abs(center-.5);
-    segs.push({s,e,len,avg,score:len*(.65+.35*avg)*centerWeight});
-  }
+ let active=sm.map(v=>v>rowNeed);
 
-  if(!segs.length) return {y:0,h:src.height,confidence:0};
-  segs.sort((a,b)=>b.score-a.score);
-  let best=segs[0];
+ // 內容內的小黑縫補起來，但大的黑條不補
+ const maxGap=Math.max(4,Math.round(H*.018));
+ let i=0;
+ while(i<H){
+   if(active[i]){i++;continue;}
+   const a=i; while(i<H&&!active[i]) i++; const b=i-1;
+   if(a>0&&i<H&&(b-a+1)<=maxGap) for(let k=a;k<=b;k++) active[k]=true;
+ }
 
-  // 若偵測區過薄，寧可保留原圖避免誤切
-  if(best.len < H*.08) return {y:0,h:src.height,confidence:0};
+ // 找最大連續內容區，並偏好畫面中段
+ const seg=[];
+ i=0;
+ while(i<H){
+   if(!active[i]){i++;continue;}
+   const a=i; while(i<H&&active[i]) i++; const b=i-1;
+   const len=b-a+1,center=(a+b)/2/H;
+   const avg=sm.slice(a,b+1).reduce((q,v)=>q+v,0)/len;
+   const score=len*(.7+.3*avg)*(1-.12*Math.abs(center-.5));
+   if(len>H*.04) seg.push({a,b,len,score});
+ }
+ if(!seg.length) return {y:0,h:src.height};
+ seg.sort((a,b)=>b.score-a.score);
+ let best=seg[0];
 
-  // 往外擴一點，避免切到圖片邊界 1~2px
-  best.s=Math.max(0,best.s-2); best.e=Math.min(H-1,best.e+2);
-  const y=Math.round(best.s/H*src.height);
-  const end=Math.round((best.e+1)/H*src.height);
-  return {y,h:Math.max(1,end-y),confidence:best.avg};
+ // 只留很小安全邊，不再保留大段黑邊
+ const pad=Math.max(1,Math.round(H*.002));
+ best.a=Math.max(0,best.a-pad);best.b=Math.min(H-1,best.b+pad);
+ const y=Math.round(best.a/H*src.height);
+ const end=Math.round((best.b+1)/H*src.height);
+ return {y,h:Math.max(1,end-y)};
 }
 
-function parseRatio(s){const [w,h]=s.split(':').map(Number);return {w,h,val:w/h};}
-
 async function makeOne(file){
-  const {img,url}=await loadImage(file);
-  const src=document.createElement('canvas');src.width=img.naturalWidth;src.height=img.naturalHeight;
-  src.getContext('2d').drawImage(img,0,0);
+ const {img,url}=await loadImage(file);
+ const src=document.createElement('canvas');src.width=img.naturalWidth;src.height=img.naturalHeight;
+ src.getContext('2d').drawImage(img,0,0);
 
-  const band=detectMainBand(src);
-  let sx=0,sy=band.y,sw=src.width,sh=band.h;
+ const band=detectContentBand(src);
+ const sx=0,sy=band.y,sw=src.width,sh=band.h;
+ const out=document.createElement('canvas');
+ let suffix='smart';
 
-  let out=document.createElement('canvas');
-  let suffix='smart';
+ if(mode==='smart'){
+   out.width=sw;out.height=sh;
+   out.getContext('2d').drawImage(src,sx,sy,sw,sh,0,0,sw,sh);
+ }else{
+   const r=parseRatio(ratio);
+   let ow=sw,oh=Math.round(sw/r.val);
+   if(oh<sh){oh=sh;ow=Math.round(sh*r.val);}
+   out.width=ow;out.height=oh;
+   const ctx=out.getContext('2d');ctx.fillStyle='#000';ctx.fillRect(0,0,ow,oh);
+   const scale=Math.min(ow/sw,oh/sh),dw=Math.round(sw*scale),dh=Math.round(sh*scale);
+   ctx.drawImage(src,sx,sy,sw,sh,Math.round((ow-dw)/2),Math.round((oh-dh)/2),dw,dh);
+   suffix='fit_'+ratio.replace(':','x');
+ }
 
-  if(mode==='smart'){
-    out.width=sw;out.height=sh;
-    out.getContext('2d').drawImage(src,sx,sy,sw,sh,0,0,sw,sh);
-  }else{
-    const r=parseRatio(ratio);
-    let ow=sw,oh=Math.round(sw/r.val);
-    if(oh<sh){oh=sh;ow=Math.round(sh*r.val);}
-    out.width=ow;out.height=oh;
-    const ctx=out.getContext('2d');
-    ctx.fillStyle='#000';ctx.fillRect(0,0,ow,oh);
-    const scale=Math.min(ow/sw,oh/sh);
-    const dw=Math.round(sw*scale),dh=Math.round(sh*scale);
-    ctx.drawImage(src,sx,sy,sw,sh,Math.round((ow-dw)/2),Math.round((oh-dh)/2),dw,dh);
-    suffix='fit_'+ratio.replace(':','x');
-  }
-
-  const blob=await new Promise(r=>out.toBlob(r,'image/jpeg',.97));
-  URL.revokeObjectURL(url);
-  const base=file.name.replace(/\.[^.]+$/,'');
-  return {blob,name:`${base}_${suffix}.jpg`,ow:out.width,oh:out.height,sw:img.naturalWidth,sh:img.naturalHeight,bandH:band.h};
+ const blob=await new Promise(r=>out.toBlob(r,'image/jpeg',.97));URL.revokeObjectURL(url);
+ const base=file.name.replace(/\.[^.]+$/,'');
+ return{blob,name:`${base}_${suffix}.jpg`,ow:out.width,oh:out.height,sw:img.naturalWidth,sh:img.naturalHeight};
 }
 
 function addCard(o){
  const u=URL.createObjectURL(o.blob),div=document.createElement('div');div.className='item';
- div.innerHTML=`<img src="${u}"><div class="meta"><span class="badge">${mode==='smart'?'智慧抓圖':'完整保留 '+ratio}</span><br><strong>${o.name}</strong><br>原圖：${o.sw} × ${o.sh}<br>新圖：${o.ow} × ${o.oh}</div>`;
+ div.innerHTML=`<img src="${u}"><div class="meta"><span class="badge">${mode==='smart'?'智慧去黑邊':'完整保留 '+ratio}</span><br><strong>${o.name}</strong><br>原圖：${o.sw} × ${o.sh}<br>新圖：${o.ow} × ${o.oh}</div>`;
  grid.appendChild(div);
 }
 
@@ -192,7 +202,6 @@ processBtn.onclick=async()=>{
  statusEl.textContent=`完成 ✅ ${outputs.length} 張；原圖未覆蓋`;processBtn.disabled=false;downloadBtn.disabled=!outputs.length;
 };
 
-// 簡易 store ZIP，不依賴外部套件
 const crcTable=(()=>{let t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?0xedb88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
 function crc32(a){let c=0xffffffff;for(const b of a)c=crcTable[(c^b)&255]^(c>>>8);return(c^0xffffffff)>>>0}
 const u16=n=>[n&255,(n>>>8)&255],u32=n=>[n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255];
@@ -204,6 +213,6 @@ async function zip(fs){
  const cs=C.reduce((a,b)=>a+b.length,0),end=new Uint8Array([...u32(0x06054b50),...u16(0),...u16(0),...u16(fs.length),...u16(fs.length),...u32(cs),...u32(off),...u16(0)]);
  return new Blob([...L,...C,end],{type:'application/zip'});
 }
-downloadBtn.onclick=async()=>{statusEl.textContent='正在打包…';const b=await zip(outputs),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download='Queena_智慧剪裁.zip';a.click();setTimeout(()=>URL.revokeObjectURL(u),30000);statusEl.textContent='ZIP 已下載 ✅';};
+downloadBtn.onclick=async()=>{statusEl.textContent='正在打包…';const b=await zip(outputs),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download='Queena_智慧去黑邊.zip';a.click();setTimeout(()=>URL.revokeObjectURL(u),30000);statusEl.textContent='ZIP 已下載 ✅';};
 </script>
 </body></html>
