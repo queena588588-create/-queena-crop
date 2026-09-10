@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Queena 批次照片剪裁工具</title>
+<title>Queena 批次照片剪裁工具 v2</title>
 <style>
 :root{
   --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --txt:#f7f7fb; --sub:#b8c0cc;
@@ -18,9 +18,11 @@ p{margin:0 0 10px;color:var(--sub);line-height:1.55}
 .card{background:rgba(23,26,33,.95);border:1px solid var(--line);border-radius:18px;padding:16px;margin:14px 0;box-shadow:0 10px 30px rgba(0,0,0,.18)}
 .pick{display:flex;align-items:center;justify-content:center;width:100%;padding:15px 18px;background:white;color:#111;border-radius:14px;font-size:17px;font-weight:700;cursor:pointer}
 input[type=file]{display:none}
-.ratios{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:12px}
-.ratio{padding:12px;border:1px solid var(--line);border-radius:14px;background:#12151c;text-align:center;font-weight:700;cursor:pointer;color:#e6eaff}
-.ratio.active{background:var(--accent);border-color:transparent}
+.ratios,.modes{display:grid;gap:10px;margin-top:12px}
+.ratios{grid-template-columns:repeat(5,1fr)}
+.modes{grid-template-columns:repeat(3,1fr)}
+.ratio,.mode{padding:12px;border:1px solid var(--line);border-radius:14px;background:#12151c;text-align:center;font-weight:700;cursor:pointer;color:#e6eaff}
+.ratio.active,.mode.active{background:var(--accent);border-color:transparent}
 .meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;color:#dde2ea;font-size:14px}
 .meta label{display:flex;align-items:center;gap:6px}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
@@ -32,20 +34,34 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .item{background:#10131a;border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .item img{display:block;width:100%;aspect-ratio:1/1;object-fit:contain;background:#000}
 .item .txt{padding:10px 12px;font-size:13px;color:#cad1dc;line-height:1.45}
-.badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#242a35;color:#eef}
+.badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#242a35;color:#eef;margin-right:6px}
 .small{font-size:13px;color:#95a0b0}
 code{color:#fff}
-@media (max-width:760px){.ratios{grid-template-columns:repeat(2,1fr)}}
+.tip{margin-top:12px;padding:12px;background:#10131a;border:1px solid #31384a;border-radius:12px;color:#d4d9e4;font-size:14px;line-height:1.5}
+@media (max-width:760px){.ratios,.modes{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>📸 Queena 批次照片剪裁工具</h1>
-  <p>一次選很多張照片或截圖，批次剪裁成指定比例。<strong>不會覆蓋原圖</strong>，只會另外輸出新檔，方便你檢查哪些有用到、哪些尺寸不對。</p>
+  <h1>📸 Queena 批次照片剪裁工具 v2</h1>
+  <p>這版新增 <strong>3 種模式</strong>：只去黑邊、完整保留、強制裁切。這樣就不會每張都被硬切掉一半。</p>
 
   <div class="card">
     <label class="pick" for="files">＋ 選擇多張照片 / 截圖</label>
     <input id="files" type="file" accept="image/*" multiple>
+
+    <div class="tip">
+      <strong>模式怎麼選：</strong><br>
+      1. <strong>只去黑邊</strong>：只拿掉上下黑底，不強制變成 16:9。<br>
+      2. <strong>完整保留</strong>：做成選定比例，但會完整保留內容，不裁掉主圖。<br>
+      3. <strong>強制裁切</strong>：硬裁成選定比例，可能會切掉上下或左右。
+    </div>
+
+    <div class="modes">
+      <div class="mode active" data-mode="trim">只去黑邊</div>
+      <div class="mode" data-mode="fit">完整保留</div>
+      <div class="mode" data-mode="crop">強制裁切</div>
+    </div>
 
     <div class="ratios">
       <div class="ratio active" data-ratio="16:9">16:9</div>
@@ -58,17 +74,18 @@ code{color:#fff}
     <div class="meta">
       <label><input type="checkbox" id="trimBlack" checked> 自動去上下黑邊（適合截圖）</label>
       <label><input type="checkbox" id="pngOut"> 輸出 PNG</label>
+      <span>目前模式：<strong id="currentMode">只去黑邊</strong></span>
       <span>目前比例：<strong id="currentRatio">16:9</strong></span>
     </div>
 
     <div class="actions">
-      <button id="process" disabled>開始剪裁</button>
+      <button id="process" disabled>開始處理</button>
       <button id="download" class="secondary" disabled>下載全部 ZIP</button>
       <button id="clear" class="secondary">清空</button>
     </div>
 
     <div id="status" class="status"></div>
-    <div class="small">輸出檔名會自動加上比例，例如：<code>IMG_1234_16x9.jpg</code>。原圖不會被覆蓋。</div>
+    <div class="small">原圖不會覆蓋，新檔名會自動加上模式與比例，例如：<code>IMG_1234_trim.jpg</code>、<code>IMG_1234_fit_16x9.jpg</code></div>
   </div>
 
   <div class="card">
@@ -86,11 +103,14 @@ const clearBtn = $('#clear');
 const grid = $('#grid');
 const statusEl = $('#status');
 const currentRatioEl = $('#currentRatio');
+const currentModeEl = $('#currentMode');
 const ratioEls = [...document.querySelectorAll('.ratio')];
+const modeEls = [...document.querySelectorAll('.mode')];
 
 let selectedFiles = [];
 let outputs = [];
 let activeRatio = '16:9';
+let activeMode = 'trim';
 
 ratioEls.forEach(el=>{
   el.addEventListener('click',()=>{
@@ -98,6 +118,16 @@ ratioEls.forEach(el=>{
     el.classList.add('active');
     activeRatio = el.dataset.ratio;
     currentRatioEl.textContent = activeRatio;
+  });
+});
+
+const modeNameMap = {trim:'只去黑邊', fit:'完整保留', crop:'強制裁切'};
+modeEls.forEach(el=>{
+  el.addEventListener('click',()=>{
+    modeEls.forEach(x=>x.classList.remove('active'));
+    el.classList.add('active');
+    activeMode = el.dataset.mode;
+    currentModeEl.textContent = modeNameMap[activeMode];
   });
 });
 
@@ -167,7 +197,7 @@ function detectVerticalNonBlack(ctx,w,h){
   return { sy, sh: Math.max(1, ey - sy) };
 }
 
-async function cropOne(file){
+async function processOne(file){
   const {rw,rh,val:targetRatio} = parseRatio(activeRatio);
   const {img,url} = await loadImage(file);
 
@@ -185,22 +215,56 @@ async function cropOne(file){
     sh = r.sh;
   }
 
-  const current = sw / sh;
-  if(current > targetRatio){
-    const newW = Math.round(sh * targetRatio);
-    sx += Math.round((sw - newW) / 2);
-    sw = newW;
-  }else if(current < targetRatio){
-    const newH = Math.round(sw / targetRatio);
-    sy += Math.round((sh - newH) / 2);
-    sh = newH;
+  let out = document.createElement('canvas');
+  let outW, outH;
+
+  if(activeMode === 'trim'){
+    outW = sw;
+    outH = sh;
+    out.width = outW;
+    out.height = outH;
+    out.getContext('2d').drawImage(src, sx, sy, sw, sh, 0, 0, outW, outH);
   }
 
-  const out = document.createElement('canvas');
-  out.width = sw;
-  out.height = Math.round(sw * rh / rw);
-  const octx = out.getContext('2d');
-  octx.drawImage(src, sx, sy, sw, sh, 0, 0, out.width, out.height);
+  if(activeMode === 'crop'){
+    const current = sw / sh;
+    if(current > targetRatio){
+      const newW = Math.round(sh * targetRatio);
+      sx += Math.round((sw - newW) / 2);
+      sw = newW;
+    }else if(current < targetRatio){
+      const newH = Math.round(sw / targetRatio);
+      sy += Math.round((sh - newH) / 2);
+      sh = newH;
+    }
+    outW = sw;
+    outH = Math.round(sw * rh / rw);
+    out.width = outW;
+    out.height = outH;
+    out.getContext('2d').drawImage(src, sx, sy, sw, sh, 0, 0, outW, outH);
+  }
+
+  if(activeMode === 'fit'){
+    let boxW = sw;
+    let boxH = Math.round(sw * rh / rw);
+    if(boxH < sh){
+      boxH = sh;
+      boxW = Math.round(sh * rw / rh);
+    }
+    outW = boxW;
+    outH = boxH;
+    out.width = outW;
+    out.height = outH;
+    const ctx = out.getContext('2d');
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0,0,outW,outH);
+    const scale = Math.min(outW/sw, outH/sh);
+    const drawW = Math.round(sw * scale);
+    const drawH = Math.round(sh * scale);
+    const dx = Math.round((outW - drawW) / 2);
+    const dy = Math.round((outH - drawH) / 2);
+    ctx.drawImage(src, sx, sy, sw, sh, dx, dy, drawW, drawH);
+  }
 
   const png = $('#pngOut').checked;
   const blob = await new Promise(res=>out.toBlob(res, png ? 'image/png':'image/jpeg', png ? undefined : 0.96));
@@ -209,11 +273,13 @@ async function cropOne(file){
   const originalName = file.name.replace(/\.[^.]+$/, '');
   const ratioText = activeRatio.replace(':','x');
   const ext = png ? 'png' : 'jpg';
-  const outName = `${originalName}_${ratioText}.${ext}`;
+  const suffix = activeMode === 'trim' ? 'trim' : `${activeMode}_${ratioText}`;
+  const outName = `${originalName}_${suffix}.${ext}`;
 
   return {
     blob, name: outName, outW: out.width, outH: out.height,
-    srcW: img.naturalWidth, srcH: img.naturalHeight, ratioText
+    srcW: img.naturalWidth, srcH: img.naturalHeight,
+    ratioText, modeText: modeNameMap[activeMode]
   };
 }
 
@@ -224,7 +290,7 @@ function addCard(item){
   div.innerHTML = `
     <img src="${previewUrl}">
     <div class="txt">
-      <div><span class="badge">${item.ratioText}</span></div>
+      <div><span class="badge">${item.modeText}</span><span class="badge">${item.ratioText}</span></div>
       <div style="margin-top:6px"><strong>${item.name}</strong></div>
       <div>原圖：${item.srcW} × ${item.srcH}</div>
       <div>新圖：${item.outW} × ${item.outH}</div>
@@ -241,7 +307,7 @@ processBtn.addEventListener('click', async ()=>{
   for(let i=0;i<selectedFiles.length;i++){
     statusEl.textContent = `處理中 ${i+1} / ${selectedFiles.length}…`;
     try{
-      const item = await cropOne(selectedFiles[i]);
+      const item = await processOne(selectedFiles[i]);
       outputs.push(item);
       addCard(item);
     }catch(err){
@@ -286,7 +352,7 @@ downloadBtn.addEventListener('click', async ()=>{
   const url = URL.createObjectURL(zip);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `照片剪裁_${activeRatio.replace(':','x')}.zip`;
+  a.download = `照片處理_${activeMode}_${activeRatio.replace(':','x')}.zip`;
   document.body.appendChild(a);
   a.click();
   a.remove();
