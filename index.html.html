@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Queena 批次照片剪裁工具</title>
+<style>
+:root{
+  --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --txt:#f7f7fb; --sub:#b8c0cc;
+  --accent:#8b6cff; --ok:#b8ffca;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,#0d0f13,#151923);color:var(--txt)}
+.wrap{max-width:980px;margin:auto;padding:18px}
+h1{margin:6px 0 8px;font-size:28px}
+p{margin:0 0 10px;color:var(--sub);line-height:1.55}
+.card{background:rgba(23,26,33,.95);border:1px solid var(--line);border-radius:18px;padding:16px;margin:14px 0;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.pick{display:flex;align-items:center;justify-content:center;width:100%;padding:15px 18px;background:white;color:#111;border-radius:14px;font-size:17px;font-weight:700;cursor:pointer}
+input[type=file]{display:none}
+.ratios{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:12px}
+.ratio{padding:12px;border:1px solid var(--line);border-radius:14px;background:#12151c;text-align:center;font-weight:700;cursor:pointer;color:#e6eaff}
+.ratio.active{background:var(--accent);border-color:transparent}
+.meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;color:#dde2ea;font-size:14px}
+.meta label{display:flex;align-items:center;gap:6px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+button{padding:13px 18px;border:0;border-radius:14px;background:var(--accent);color:white;font-size:16px;font-weight:700;cursor:pointer}
+button.secondary{background:#262d39}
+button:disabled{opacity:.45;cursor:not-allowed}
+.status{min-height:22px;margin-top:12px;font-size:14px;color:var(--ok)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-top:14px}
+.item{background:#10131a;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.item img{display:block;width:100%;aspect-ratio:1/1;object-fit:contain;background:#000}
+.item .txt{padding:10px 12px;font-size:13px;color:#cad1dc;line-height:1.45}
+.badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#242a35;color:#eef}
+.small{font-size:13px;color:#95a0b0}
+code{color:#fff}
+@media (max-width:760px){.ratios{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📸 Queena 批次照片剪裁工具</h1>
+  <p>一次選很多張照片或截圖，批次剪裁成指定比例。<strong>不會覆蓋原圖</strong>，只會另外輸出新檔，方便你檢查哪些有用到、哪些尺寸不對。</p>
+
+  <div class="card">
+    <label class="pick" for="files">＋ 選擇多張照片 / 截圖</label>
+    <input id="files" type="file" accept="image/*" multiple>
+
+    <div class="ratios">
+      <div class="ratio active" data-ratio="16:9">16:9</div>
+      <div class="ratio" data-ratio="1:1">正方形 1:1</div>
+      <div class="ratio" data-ratio="9:16">9:16</div>
+      <div class="ratio" data-ratio="4:5">4:5</div>
+      <div class="ratio" data-ratio="3:4">3:4</div>
+    </div>
+
+    <div class="meta">
+      <label><input type="checkbox" id="trimBlack" checked> 自動去上下黑邊（適合截圖）</label>
+      <label><input type="checkbox" id="pngOut"> 輸出 PNG</label>
+      <span>目前比例：<strong id="currentRatio">16:9</strong></span>
+    </div>
+
+    <div class="actions">
+      <button id="process" disabled>開始剪裁</button>
+      <button id="download" class="secondary" disabled>下載全部 ZIP</button>
+      <button id="clear" class="secondary">清空</button>
+    </div>
+
+    <div id="status" class="status"></div>
+    <div class="small">輸出檔名會自動加上比例，例如：<code>IMG_1234_16x9.jpg</code>。原圖不會被覆蓋。</div>
+  </div>
+
+  <div class="card">
+    <div><strong>處理結果</strong></div>
+    <div id="grid" class="grid"></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const filesEl = $('#files');
+const processBtn = $('#process');
+const downloadBtn = $('#download');
+const clearBtn = $('#clear');
+const grid = $('#grid');
+const statusEl = $('#status');
+const currentRatioEl = $('#currentRatio');
+const ratioEls = [...document.querySelectorAll('.ratio')];
+
+let selectedFiles = [];
+let outputs = [];
+let activeRatio = '16:9';
+
+ratioEls.forEach(el=>{
+  el.addEventListener('click',()=>{
+    ratioEls.forEach(x=>x.classList.remove('active'));
+    el.classList.add('active');
+    activeRatio = el.dataset.ratio;
+    currentRatioEl.textContent = activeRatio;
+  });
+});
+
+filesEl.addEventListener('change',()=>{
+  selectedFiles = [...filesEl.files];
+  outputs = [];
+  grid.innerHTML = '';
+  processBtn.disabled = !selectedFiles.length;
+  downloadBtn.disabled = true;
+  statusEl.textContent = selectedFiles.length ? `已選 ${selectedFiles.length} 張` : '';
+});
+
+clearBtn.addEventListener('click',()=>{
+  selectedFiles = [];
+  outputs = [];
+  filesEl.value = '';
+  grid.innerHTML = '';
+  statusEl.textContent = '已清空';
+  processBtn.disabled = true;
+  downloadBtn.disabled = true;
+});
+
+function parseRatio(str){
+  const [w,h]=str.split(':').map(Number);
+  return {rw:w, rh:h, val:w/h};
+}
+
+function loadImage(file){
+  return new Promise((resolve,reject)=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>resolve({img,url});
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+function detectVerticalNonBlack(ctx,w,h){
+  const sampleW = Math.min(w, 700);
+  const sampleH = Math.min(h, 1800);
+  const c = document.createElement('canvas');
+  c.width = sampleW; c.height = sampleH;
+  const x = c.getContext('2d', {willReadFrequently:true});
+  x.drawImage(ctx.canvas, 0,0,w,h, 0,0,sampleW,sampleH);
+  const d = x.getImageData(0,0,sampleW,sampleH).data;
+
+  function rowScore(y){
+    let bright=0, count=0;
+    const step=Math.max(1, Math.floor(sampleW/140));
+    for(let xx=0; xx<sampleW; xx+=step){
+      const i=(y*sampleW+xx)*4;
+      const lum=(d[i]+d[i+1]+d[i+2])/3;
+      if(lum > 24) bright++;
+      count++;
+    }
+    return bright / count;
+  }
+  let top = 0, bottom = sampleH - 1;
+  const th = 0.06;
+  while(top < sampleH - 1 && rowScore(top) < th) top++;
+  while(bottom > top && rowScore(bottom) < th) bottom--;
+  top = Math.max(0, top - 2);
+  bottom = Math.min(sampleH - 1, bottom + 2);
+
+  const sy = Math.round(top / sampleH * h);
+  const ey = Math.round((bottom + 1) / sampleH * h);
+  return { sy, sh: Math.max(1, ey - sy) };
+}
+
+async function cropOne(file){
+  const {rw,rh,val:targetRatio} = parseRatio(activeRatio);
+  const {img,url} = await loadImage(file);
+
+  const src = document.createElement('canvas');
+  src.width = img.naturalWidth;
+  src.height = img.naturalHeight;
+  const sctx = src.getContext('2d');
+  sctx.drawImage(img,0,0);
+
+  let sx=0, sy=0, sw=src.width, sh=src.height;
+
+  if($('#trimBlack').checked){
+    const r = detectVerticalNonBlack(sctx, sw, sh);
+    sy = r.sy;
+    sh = r.sh;
+  }
+
+  const current = sw / sh;
+  if(current > targetRatio){
+    const newW = Math.round(sh * targetRatio);
+    sx += Math.round((sw - newW) / 2);
+    sw = newW;
+  }else if(current < targetRatio){
+    const newH = Math.round(sw / targetRatio);
+    sy += Math.round((sh - newH) / 2);
+    sh = newH;
+  }
+
+  const out = document.createElement('canvas');
+  out.width = sw;
+  out.height = Math.round(sw * rh / rw);
+  const octx = out.getContext('2d');
+  octx.drawImage(src, sx, sy, sw, sh, 0, 0, out.width, out.height);
+
+  const png = $('#pngOut').checked;
+  const blob = await new Promise(res=>out.toBlob(res, png ? 'image/png':'image/jpeg', png ? undefined : 0.96));
+  URL.revokeObjectURL(url);
+
+  const originalName = file.name.replace(/\.[^.]+$/, '');
+  const ratioText = activeRatio.replace(':','x');
+  const ext = png ? 'png' : 'jpg';
+  const outName = `${originalName}_${ratioText}.${ext}`;
+
+  return {
+    blob, name: outName, outW: out.width, outH: out.height,
+    srcW: img.naturalWidth, srcH: img.naturalHeight, ratioText
+  };
+}
+
+function addCard(item){
+  const previewUrl = URL.createObjectURL(item.blob);
+  const div = document.createElement('div');
+  div.className = 'item';
+  div.innerHTML = `
+    <img src="${previewUrl}">
+    <div class="txt">
+      <div><span class="badge">${item.ratioText}</span></div>
+      <div style="margin-top:6px"><strong>${item.name}</strong></div>
+      <div>原圖：${item.srcW} × ${item.srcH}</div>
+      <div>新圖：${item.outW} × ${item.outH}</div>
+    </div>`;
+  grid.appendChild(div);
+}
+
+processBtn.addEventListener('click', async ()=>{
+  outputs = [];
+  grid.innerHTML = '';
+  processBtn.disabled = true;
+  downloadBtn.disabled = true;
+
+  for(let i=0;i<selectedFiles.length;i++){
+    statusEl.textContent = `處理中 ${i+1} / ${selectedFiles.length}…`;
+    try{
+      const item = await cropOne(selectedFiles[i]);
+      outputs.push(item);
+      addCard(item);
+    }catch(err){
+      console.error(err);
+    }
+  }
+  statusEl.textContent = `完成 ✅ 共 ${outputs.length} 張，原圖未覆蓋。`;
+  processBtn.disabled = false;
+  downloadBtn.disabled = !outputs.length;
+});
+
+const crcTable=(()=>{let t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?0xedb88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(bytes){let c=0xffffffff;for(const b of bytes)c=crcTable[(c^b)&255]^(c>>>8);return (c^0xffffffff)>>>0}
+function u16(n){return [n&255,(n>>>8)&255]}
+function u32(n){return [n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255]}
+async function makeZip(files){
+  const enc=new TextEncoder(), locals=[], centrals=[]; let offset=0;
+  for(const f of files){
+    const data=new Uint8Array(await f.blob.arrayBuffer()), name=enc.encode(f.name), crc=crc32(data);
+    const local=new Uint8Array([
+      ...u32(0x04034b50),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),
+      ...u32(crc),...u32(data.length),...u32(data.length),...u16(name.length),...u16(0),...name,...data
+    ]);
+    locals.push(local);
+    const central=new Uint8Array([
+      ...u32(0x02014b50),...u16(20),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),
+      ...u32(crc),...u32(data.length),...u32(data.length),...u16(name.length),...u16(0),...u16(0),
+      ...u16(0),...u16(0),...u32(0),...u32(offset),...name
+    ]);
+    centrals.push(central); offset += local.length;
+  }
+  const centralSize = centrals.reduce((a,b)=>a+b.length,0);
+  const end = new Uint8Array([
+    ...u32(0x06054b50),...u16(0),...u16(0),...u16(files.length),...u16(files.length),
+    ...u32(centralSize),...u32(offset),...u16(0)
+  ]);
+  return new Blob([...locals,...centrals,end], {type:'application/zip'});
+}
+downloadBtn.addEventListener('click', async ()=>{
+  statusEl.textContent = '正在打包 ZIP…';
+  const zip = await makeZip(outputs);
+  const url = URL.createObjectURL(zip);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `照片剪裁_${activeRatio.replace(':','x')}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 30000);
+  statusEl.textContent = 'ZIP 已下載 ✅';
+});
+</script>
+</body>
+</html>
