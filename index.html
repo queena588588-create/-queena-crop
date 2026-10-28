@@ -3,205 +3,285 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Queena 智慧批次剪裁 v4</title>
+<title>Queena 批次手動剪裁工具</title>
 <style>
-:root{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC",sans-serif;--bg:#0e1117;--card:#171b24;--line:#2c3340;--accent:#8b6cff;--txt:#fff;--sub:#b9c1ce}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt)}.wrap{max-width:900px;margin:auto;padding:18px}
-h1{font-size:27px;margin:4px 0 8px}p{color:var(--sub);line-height:1.55}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:14px 0}
-.pick,button{border:0;border-radius:14px;padding:14px 16px;font-size:16px;font-weight:700}.pick{display:flex;justify-content:center;background:#fff;color:#111;cursor:pointer}input[type=file]{display:none}
-.modes,.ratios{display:grid;gap:9px;margin-top:12px}.modes{grid-template-columns:repeat(2,1fr)}.ratios{grid-template-columns:repeat(5,1fr)}
-.opt{background:#11151d;border:1px solid var(--line);border-radius:13px;padding:12px;text-align:center;font-weight:700;cursor:pointer}.opt.active{background:var(--accent)}
-.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}button{background:var(--accent);color:#fff;cursor:pointer}button.alt{background:#28303c}button:disabled{opacity:.45}
-.tip{background:#10151d;border:1px solid #303848;border-radius:12px;padding:12px;color:#d7dce5;line-height:1.5;font-size:14px}.status{min-height:22px;margin-top:10px;color:#b9ffc8}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}.item{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#10141b}.item img{width:100%;display:block;background:#000;aspect-ratio:1/1;object-fit:contain}.meta{padding:10px;font-size:13px;color:#ccd3de;line-height:1.45}
-.badge{display:inline-block;background:#252c38;border-radius:999px;padding:3px 8px;margin-right:5px}.small{font-size:12px;color:#8e98a7;margin-top:8px}
-.range{margin-top:12px}.range label{display:flex;justify-content:space-between;color:#d9deea;font-size:14px}.range input{width:100%}
-@media(max-width:700px){.ratios{grid-template-columns:repeat(2,1fr)}}
+:root{
+  --bg:#0e1117;--card:#171b24;--line:#2c3340;--accent:#8b6cff;
+  --txt:#fff;--sub:#b8c0cc;--ok:#baffc9;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt)}
+.wrap{max-width:980px;margin:auto;padding:16px}
+h1{font-size:27px;margin:4px 0 8px}
+p{color:var(--sub);line-height:1.55;margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:14px 0}
+.pick,button{border:0;border-radius:14px;padding:14px 16px;font-size:16px;font-weight:700}
+.pick{display:flex;justify-content:center;background:#fff;color:#111;cursor:pointer}
+input[type=file]{display:none}
+.ratios{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-top:12px}
+.opt{background:#11151d;border:1px solid var(--line);border-radius:13px;padding:12px;text-align:center;font-weight:700;cursor:pointer}
+.opt.active{background:var(--accent)}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+button{background:var(--accent);color:#fff;cursor:pointer}
+button.alt{background:#28303c}
+button:disabled{opacity:.45;cursor:not-allowed}
+.tip{background:#10151d;border:1px solid #303848;border-radius:12px;padding:12px;color:#d7dce5;line-height:1.5;font-size:14px}
+.stage-wrap{margin-top:14px;display:none}
+.stage-title{font-size:14px;color:#d8deea;margin-bottom:8px}
+.stage{
+  position:relative; width:100%; max-width:760px; margin:auto;
+  background:#000; border-radius:14px; overflow:hidden; touch-action:none;
+  border:1px solid var(--line);
+}
+.stage img{display:block;width:100%;height:auto;user-select:none;-webkit-user-drag:none}
+.crop{
+  position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.56);
+  cursor:move;touch-action:none;
+}
+.handle{position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--accent)}
+.tl{left:-11px;top:-11px}.tr{right:-11px;top:-11px}.bl{left:-11px;bottom:-11px}.br{right:-11px;bottom:-11px}
+.info{font-size:13px;color:#cbd2de;line-height:1.5;margin-top:10px}
+.status{min-height:22px;margin-top:10px;color:var(--ok)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:12px}
+.item{background:#10141b;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.item img{width:100%;display:block;background:#000;aspect-ratio:1/1;object-fit:contain}
+.meta{padding:10px;font-size:13px;color:#ccd3de;line-height:1.45}
+.badge{display:inline-block;background:#252c38;border-radius:999px;padding:3px 8px;margin-right:5px}
+.small{font-size:12px;color:#8e98a7;margin-top:8px}
+@media(max-width:760px){.ratios{grid-template-columns:repeat(3,1fr)}}
 </style>
 </head>
-<body><div class="wrap">
-<h1>📸 Queena 智慧批次剪裁 v4</h1>
-<p>這版改成「<strong>辨識黑底本身的顏色</strong>」再找內容，不會把 JPEG 壓縮後的深灰黑底誤認成圖片。</p>
+<body>
+<div class="wrap">
+<h1>✂️ Queena 批次手動剪裁</h1>
+<p>第一張照片自己拉框，確認要留下的範圍，再把同一個框套用到全部照片。<strong>原圖不會覆蓋</strong>。</p>
 
 <div class="card">
-<label class="pick" for="files">＋ 選擇多張截圖</label>
-<input id="files" type="file" accept="image/*" multiple>
+  <label class="pick" for="files">＋ 選擇多張照片 / 截圖</label>
+  <input id="files" type="file" accept="image/*" multiple>
 
-<div class="tip" style="margin-top:12px">
-<strong>你的這種截圖：</strong>選「智慧去黑邊」就好。<br>
-它會把中間圖片上下的黑色空白裁掉，<strong>不會硬裁內容</strong>。如果某些圖黑邊還剩一點，可把「去黑邊強度」往右拉。
+  <div class="tip" style="margin-top:12px">
+    <strong>使用方式：</strong><br>
+    1. 一次選很多張同尺寸截圖。<br>
+    2. 用第一張拉好裁切框。<br>
+    3. 可選自由裁切，或鎖定 16:9、1:1、9:16、4:5、3:4。<br>
+    4. 按「套用全部並剪裁」。
+  </div>
+
+  <div class="ratios">
+    <div class="opt active" data-ratio="free">自由</div>
+    <div class="opt" data-ratio="16:9">16:9</div>
+    <div class="opt" data-ratio="1:1">1:1</div>
+    <div class="opt" data-ratio="9:16">9:16</div>
+    <div class="opt" data-ratio="4:5">4:5</div>
+    <div class="opt" data-ratio="3:4">3:4</div>
+  </div>
+
+  <div class="stage-wrap" id="stageWrap">
+    <div class="stage-title">第一張預覽：拖曳白框，四個圓點可調整大小</div>
+    <div class="stage" id="stage">
+      <img id="preview" alt="">
+      <div class="crop" id="crop">
+        <div class="handle tl" data-handle="tl"></div>
+        <div class="handle tr" data-handle="tr"></div>
+        <div class="handle bl" data-handle="bl"></div>
+        <div class="handle br" data-handle="br"></div>
+      </div>
+    </div>
+    <div class="info" id="cropInfo"></div>
+  </div>
+
+  <div class="actions">
+    <button id="process" disabled>套用全部並剪裁</button>
+    <button id="reset" class="alt" disabled>重設裁切框</button>
+    <button id="download" class="alt" disabled>下載全部 ZIP</button>
+    <button id="clear" class="alt">清空</button>
+  </div>
+
+  <div id="status" class="status"></div>
+  <div class="small">若不同照片原始尺寸不同，工具會依比例換算同一個裁切位置，不會直接用固定像素硬切。</div>
 </div>
 
-<div class="modes">
-  <div class="opt active" data-mode="smart">✨ 智慧去黑邊</div>
-  <div class="opt" data-mode="fit">完整放入指定比例</div>
+<div class="card">
+  <strong>處理結果</strong>
+  <div id="grid" class="grid"></div>
 </div>
-
-<div class="range">
-  <label><span>去黑邊強度</span><strong id="strengthLabel">標準</strong></label>
-  <input id="strength" type="range" min="1" max="3" step="1" value="2">
-</div>
-
-<div class="ratios">
-  <div class="opt active" data-ratio="16:9">16:9</div>
-  <div class="opt" data-ratio="1:1">1:1 正方形</div>
-  <div class="opt" data-ratio="9:16">9:16</div>
-  <div class="opt" data-ratio="4:5">4:5</div>
-  <div class="opt" data-ratio="3:4">3:4</div>
-</div>
-
-<div class="actions">
-<button id="process" disabled>開始處理</button>
-<button id="download" class="alt" disabled>下載全部 ZIP</button>
-<button id="clear" class="alt">清空</button>
-</div>
-<div id="status" class="status"></div>
-<div class="small">原圖不會覆蓋。新圖會另外輸出。</div>
-</div>
-
-<div class="card"><strong>處理結果</strong><div id="grid" class="grid" style="margin-top:12px"></div></div>
 </div>
 
 <script>
 const $=s=>document.querySelector(s);
-const filesEl=$('#files'),processBtn=$('#process'),downloadBtn=$('#download'),clearBtn=$('#clear'),grid=$('#grid'),statusEl=$('#status');
-let files=[],outputs=[],mode='smart',ratio='16:9';
+const filesEl=$('#files'),stageWrap=$('#stageWrap'),stage=$('#stage'),preview=$('#preview'),crop=$('#crop');
+const processBtn=$('#process'),resetBtn=$('#reset'),downloadBtn=$('#download'),clearBtn=$('#clear'),grid=$('#grid'),statusEl=$('#status'),cropInfo=$('#cropInfo');
+let files=[],outputs=[],firstImg=null,ratioMode='free';
+let box={x:.05,y:.10,w:.90,h:.80}; // normalized
+let dragState=null;
 
-document.querySelectorAll('[data-mode]').forEach(el=>el.onclick=()=>{
- document.querySelectorAll('[data-mode]').forEach(x=>x.classList.remove('active')); el.classList.add('active'); mode=el.dataset.mode;
+document.querySelectorAll('[data-ratio]').forEach(el=>{
+  el.onclick=()=>{
+    document.querySelectorAll('[data-ratio]').forEach(x=>x.classList.remove('active'));
+    el.classList.add('active');
+    ratioMode=el.dataset.ratio;
+    if(firstImg) applyRatioToBox();
+  };
 });
-document.querySelectorAll('[data-ratio]').forEach(el=>el.onclick=()=>{
- document.querySelectorAll('[data-ratio]').forEach(x=>x.classList.remove('active')); el.classList.add('active'); ratio=el.dataset.ratio;
-});
 
-const strength=$('#strength'), strengthLabel=$('#strengthLabel');
-const labels={1:'寬鬆',2:'標準',3:'較強'};
-strength.oninput=()=>strengthLabel.textContent=labels[strength.value];
-
-filesEl.onchange=()=>{files=[...filesEl.files];outputs=[];grid.innerHTML='';processBtn.disabled=!files.length;downloadBtn.disabled=true;statusEl.textContent=`已選 ${files.length} 張`;};
-clearBtn.onclick=()=>{files=[];outputs=[];filesEl.value='';grid.innerHTML='';statusEl.textContent='已清空';processBtn.disabled=true;downloadBtn.disabled=true;};
-
-function loadImage(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file),img=new Image();img.onload=()=>res({img,url});img.onerror=rej;img.src=url;});}
-function parseRatio(s){const [w,h]=s.split(':').map(Number);return{w,h,val:w/h};}
-
-function median(a){const b=[...a].sort((x,y)=>x-y);return b[Math.floor(b.length/2)]||0;}
-function colorDist(r,g,b,br,bg,bb){return Math.sqrt((r-br)**2+(g-bg)**2+(b-bb)**2);}
-
-/* 核心：先估算截圖周圍黑底的實際顏色，再找「與背景顏色明顯不同」的最大連續區 */
-function detectContentBand(src){
- const W=Math.min(420,src.width),H=Math.min(1000,src.height);
- const c=document.createElement('canvas');c.width=W;c.height=H;
- const x=c.getContext('2d',{willReadFrequently:true});
- x.drawImage(src,0,0,src.width,src.height,0,0,W,H);
- const d=x.getImageData(0,0,W,H).data;
-
- // 用左右邊緣 + 上下中段多點估算黑底，不假設一定是純 #000
- const samples=[];
- const ys=[.08,.18,.30,.50,.70,.82,.92].map(v=>Math.floor(H*v));
- const xs=[.02,.04,.96,.98].map(v=>Math.floor(W*v));
- for(const yy of ys) for(const xx of xs){
-   const i=(yy*W+xx)*4; samples.push([d[i],d[i+1],d[i+2]]);
- }
- const br=median(samples.map(v=>v[0])), bg=median(samples.map(v=>v[1])), bb=median(samples.map(v=>v[2]));
-
- const s=Number(strength.value);
- const distTh={1:24,2:34,3:44}[s];
- const rowNeed={1:.12,2:.20,3:.28}[s];
-
- const rowScore=new Array(H).fill(0);
- const left=Math.floor(W*.03),right=Math.floor(W*.97);
- for(let y=0;y<H;y++){
-   let diff=0,total=0;
-   for(let xx=left;xx<right;xx+=2){
-     const i=(y*W+xx)*4;
-     if(colorDist(d[i],d[i+1],d[i+2],br,bg,bb)>distTh) diff++;
-     total++;
-   }
-   rowScore[y]=diff/total;
- }
-
- // 平滑，避免文字/細線造成斷裂
- const sm=rowScore.map((_,y)=>{
-   let sum=0,n=0;
-   for(let k=Math.max(0,y-4);k<=Math.min(H-1,y+4);k++){sum+=rowScore[k];n++;}
-   return sum/n;
- });
-
- let active=sm.map(v=>v>rowNeed);
-
- // 內容內的小黑縫補起來，但大的黑條不補
- const maxGap=Math.max(4,Math.round(H*.018));
- let i=0;
- while(i<H){
-   if(active[i]){i++;continue;}
-   const a=i; while(i<H&&!active[i]) i++; const b=i-1;
-   if(a>0&&i<H&&(b-a+1)<=maxGap) for(let k=a;k<=b;k++) active[k]=true;
- }
-
- // 找最大連續內容區，並偏好畫面中段
- const seg=[];
- i=0;
- while(i<H){
-   if(!active[i]){i++;continue;}
-   const a=i; while(i<H&&active[i]) i++; const b=i-1;
-   const len=b-a+1,center=(a+b)/2/H;
-   const avg=sm.slice(a,b+1).reduce((q,v)=>q+v,0)/len;
-   const score=len*(.7+.3*avg)*(1-.12*Math.abs(center-.5));
-   if(len>H*.04) seg.push({a,b,len,score});
- }
- if(!seg.length) return {y:0,h:src.height};
- seg.sort((a,b)=>b.score-a.score);
- let best=seg[0];
-
- // 只留很小安全邊，不再保留大段黑邊
- const pad=Math.max(1,Math.round(H*.002));
- best.a=Math.max(0,best.a-pad);best.b=Math.min(H-1,best.b+pad);
- const y=Math.round(best.a/H*src.height);
- const end=Math.round((best.b+1)/H*src.height);
- return {y,h:Math.max(1,end-y)};
+function ratioValue(){
+  if(ratioMode==='free') return null;
+  const [w,h]=ratioMode.split(':').map(Number);
+  return w/h;
 }
 
-async function makeOne(file){
- const {img,url}=await loadImage(file);
- const src=document.createElement('canvas');src.width=img.naturalWidth;src.height=img.naturalHeight;
- src.getContext('2d').drawImage(img,0,0);
+function clamp(v,min,max){return Math.max(min,Math.min(max,v));}
 
- const band=detectContentBand(src);
- const sx=0,sy=band.y,sw=src.width,sh=band.h;
- const out=document.createElement('canvas');
- let suffix='smart';
+function renderBox(){
+  crop.style.left=(box.x*100)+'%';
+  crop.style.top=(box.y*100)+'%';
+  crop.style.width=(box.w*100)+'%';
+  crop.style.height=(box.h*100)+'%';
+  if(firstImg){
+    const px=Math.round(box.x*firstImg.naturalWidth);
+    const py=Math.round(box.y*firstImg.naturalHeight);
+    const pw=Math.round(box.w*firstImg.naturalWidth);
+    const ph=Math.round(box.h*firstImg.naturalHeight);
+    cropInfo.textContent=`第一張原圖 ${firstImg.naturalWidth} × ${firstImg.naturalHeight} ｜ 裁切範圍 x:${px}, y:${py}, ${pw} × ${ph}`;
+  }
+}
 
- if(mode==='smart'){
-   out.width=sw;out.height=sh;
-   out.getContext('2d').drawImage(src,sx,sy,sw,sh,0,0,sw,sh);
- }else{
-   const r=parseRatio(ratio);
-   let ow=sw,oh=Math.round(sw/r.val);
-   if(oh<sh){oh=sh;ow=Math.round(sh*r.val);}
-   out.width=ow;out.height=oh;
-   const ctx=out.getContext('2d');ctx.fillStyle='#000';ctx.fillRect(0,0,ow,oh);
-   const scale=Math.min(ow/sw,oh/sh),dw=Math.round(sw*scale),dh=Math.round(sh*scale);
-   ctx.drawImage(src,sx,sy,sw,sh,Math.round((ow-dw)/2),Math.round((oh-dh)/2),dw,dh);
-   suffix='fit_'+ratio.replace(':','x');
- }
+function applyRatioToBox(){
+  const r=ratioValue();
+  if(!r){renderBox();return;}
+  const stageRect=stage.getBoundingClientRect();
+  const imgRatio=firstImg.naturalWidth/firstImg.naturalHeight;
+  // normalized width/height relation: (w*imgW)/(h*imgH)=r => w/h = r/imgRatio
+  const normRatio=r/imgRatio;
+  let w=box.w,h=w/normRatio;
+  if(h>0.92){h=0.92;w=h*normRatio;}
+  if(w>0.92){w=0.92;h=w/normRatio;}
+  box.w=w;box.h=h;
+  box.x=clamp(box.x,0,1-box.w);box.y=clamp(box.y,0,1-box.h);
+  renderBox();
+}
 
- const blob=await new Promise(r=>out.toBlob(r,'image/jpeg',.97));URL.revokeObjectURL(url);
- const base=file.name.replace(/\.[^.]+$/,'');
- return{blob,name:`${base}_${suffix}.jpg`,ow:out.width,oh:out.height,sw:img.naturalWidth,sh:img.naturalHeight};
+function resetBox(){
+  box={x:.05,y:.10,w:.90,h:.80};
+  applyRatioToBox();
+}
+
+function pointerNorm(e){
+  const r=stage.getBoundingClientRect();
+  return {
+    x:clamp((e.clientX-r.left)/r.width,0,1),
+    y:clamp((e.clientY-r.top)/r.height,0,1)
+  };
+}
+
+crop.addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  const p=pointerNorm(e);
+  const h=e.target.dataset.handle||'move';
+  dragState={type:h,start:p,box:{...box}};
+  crop.setPointerCapture(e.pointerId);
+});
+
+crop.addEventListener('pointermove',e=>{
+  if(!dragState)return;
+  const p=pointerNorm(e),dx=p.x-dragState.start.x,dy=p.y-dragState.start.y,b0=dragState.box;
+  const min=.05;
+  if(dragState.type==='move'){
+    box.x=clamp(b0.x+dx,0,1-b0.w);
+    box.y=clamp(b0.y+dy,0,1-b0.h);
+  }else{
+    let left=b0.x,top=b0.y,right=b0.x+b0.w,bottom=b0.y+b0.h;
+    if(dragState.type.includes('l')) left=clamp(b0.x+dx,0,right-min);
+    if(dragState.type.includes('r')) right=clamp(b0.x+b0.w+dx,left+min,1);
+    if(dragState.type.includes('t')) top=clamp(b0.y+dy,0,bottom-min);
+    if(dragState.type.includes('b')) bottom=clamp(b0.y+b0.h+dy,top+min,1);
+
+    let w=right-left,h=bottom-top;
+    const r=ratioValue();
+    if(r){
+      const imgRatio=firstImg.naturalWidth/firstImg.naturalHeight;
+      const nr=r/imgRatio;
+      if(dragState.type==='tl'){
+        w=Math.max(min,w); h=w/nr; left=right-w; top=bottom-h;
+      }else if(dragState.type==='tr'){
+        w=Math.max(min,w); h=w/nr; right=left+w; top=bottom-h;
+      }else if(dragState.type==='bl'){
+        w=Math.max(min,w); h=w/nr; left=right-w; bottom=top+h;
+      }else{
+        w=Math.max(min,w); h=w/nr; right=left+w; bottom=top+h;
+      }
+      if(left<0){left=0;w=right;h=w/nr;top=bottom-h}
+      if(top<0){top=0;h=bottom;w=h*nr;left=right-w}
+      if(right>1){right=1;w=right-left;h=w/nr;bottom=top+h}
+      if(bottom>1){bottom=1;h=bottom-top;w=h*nr;right=left+w}
+    }
+    box.x=clamp(left,0,1-min);box.y=clamp(top,0,1-min);
+    box.w=clamp(right-left,min,1-box.x);box.h=clamp(bottom-top,min,1-box.y);
+  }
+  renderBox();
+});
+
+crop.addEventListener('pointerup',()=>dragState=null);
+crop.addEventListener('pointercancel',()=>dragState=null);
+
+function loadImage(file){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(file),img=new Image();
+    img.onload=()=>res({img,url}); img.onerror=rej; img.src=url;
+  });
+}
+
+filesEl.onchange=async()=>{
+  files=[...filesEl.files];outputs=[];grid.innerHTML='';downloadBtn.disabled=true;
+  if(!files.length){stageWrap.style.display='none';processBtn.disabled=true;resetBtn.disabled=true;return;}
+  const {img,url}=await loadImage(files[0]);
+  firstImg=img; preview.src=url;
+  preview.onload=()=>{
+    stageWrap.style.display='block';
+    resetBox();
+    processBtn.disabled=false;resetBtn.disabled=false;
+    statusEl.textContent=`已選 ${files.length} 張，請先調整第一張裁切框`;
+  };
+};
+
+resetBtn.onclick=resetBox;
+clearBtn.onclick=()=>{
+  files=[];outputs=[];filesEl.value='';grid.innerHTML='';stageWrap.style.display='none';statusEl.textContent='已清空';
+  processBtn.disabled=true;resetBtn.disabled=true;downloadBtn.disabled=true;firstImg=null;
+};
+
+async function cropFile(file,index){
+  const {img,url}=await loadImage(file);
+  const sx=Math.round(box.x*img.naturalWidth), sy=Math.round(box.y*img.naturalHeight);
+  const sw=Math.max(1,Math.round(box.w*img.naturalWidth)), sh=Math.max(1,Math.round(box.h*img.naturalHeight));
+  const canvas=document.createElement('canvas');canvas.width=sw;canvas.height=sh;
+  canvas.getContext('2d').drawImage(img,sx,sy,sw,sh,0,0,sw,sh);
+  const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',.97));
+  URL.revokeObjectURL(url);
+  const base=file.name.replace(/\.[^.]+$/,'');
+  const suffix=ratioMode==='free'?'free':ratioMode.replace(':','x');
+  return {blob,name:`${base}_${suffix}.jpg`,ow:sw,oh:sh,sw:img.naturalWidth,sh:img.naturalHeight};
 }
 
 function addCard(o){
- const u=URL.createObjectURL(o.blob),div=document.createElement('div');div.className='item';
- div.innerHTML=`<img src="${u}"><div class="meta"><span class="badge">${mode==='smart'?'智慧去黑邊':'完整保留 '+ratio}</span><br><strong>${o.name}</strong><br>原圖：${o.sw} × ${o.sh}<br>新圖：${o.ow} × ${o.oh}</div>`;
- grid.appendChild(div);
+  const u=URL.createObjectURL(o.blob),div=document.createElement('div');div.className='item';
+  div.innerHTML=`<img src="${u}"><div class="meta"><span class="badge">${ratioMode==='free'?'自由裁切':ratioMode}</span><br><strong>${o.name}</strong><br>原圖：${o.sw} × ${o.sh}<br>新圖：${o.ow} × ${o.oh}</div>`;
+  grid.appendChild(div);
 }
 
 processBtn.onclick=async()=>{
- outputs=[];grid.innerHTML='';processBtn.disabled=true;downloadBtn.disabled=true;
- for(let i=0;i<files.length;i++){statusEl.textContent=`處理中 ${i+1}/${files.length}…`;try{const o=await makeOne(files[i]);outputs.push(o);addCard(o);}catch(e){console.error(e);}}
- statusEl.textContent=`完成 ✅ ${outputs.length} 張；原圖未覆蓋`;processBtn.disabled=false;downloadBtn.disabled=!outputs.length;
+  outputs=[];grid.innerHTML='';processBtn.disabled=true;downloadBtn.disabled=true;
+  for(let i=0;i<files.length;i++){
+    statusEl.textContent=`處理中 ${i+1}/${files.length}…`;
+    try{const o=await cropFile(files[i],i);outputs.push(o);addCard(o);}catch(e){console.error(e);}
+  }
+  statusEl.textContent=`完成 ✅ ${outputs.length} 張；原圖未覆蓋`;
+  processBtn.disabled=false;downloadBtn.disabled=!outputs.length;
 };
 
+// ZIP
 const crcTable=(()=>{let t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?0xedb88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
 function crc32(a){let c=0xffffffff;for(const b of a)c=crcTable[(c^b)&255]^(c>>>8);return(c^0xffffffff)>>>0}
 const u16=n=>[n&255,(n>>>8)&255],u32=n=>[n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255];
@@ -213,6 +293,12 @@ async function zip(fs){
  const cs=C.reduce((a,b)=>a+b.length,0),end=new Uint8Array([...u32(0x06054b50),...u16(0),...u16(0),...u16(fs.length),...u16(fs.length),...u32(cs),...u32(off),...u16(0)]);
  return new Blob([...L,...C,end],{type:'application/zip'});
 }
-downloadBtn.onclick=async()=>{statusEl.textContent='正在打包…';const b=await zip(outputs),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download='Queena_智慧去黑邊.zip';a.click();setTimeout(()=>URL.revokeObjectURL(u),30000);statusEl.textContent='ZIP 已下載 ✅';};
+downloadBtn.onclick=async()=>{
+  statusEl.textContent='正在打包 ZIP…';
+  const b=await zip(outputs),u=URL.createObjectURL(b),a=document.createElement('a');
+  a.href=u;a.download='Queena_批次剪裁.zip';a.click();setTimeout(()=>URL.revokeObjectURL(u),30000);
+  statusEl.textContent='ZIP 已下載 ✅';
+};
 </script>
-</body></html>
+</body>
+</html>
